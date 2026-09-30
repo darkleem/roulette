@@ -10,9 +10,8 @@ import options, { type WinnerRange } from './options';
 import { ParticleManager } from './particleManager';
 import { Box2dPhysics } from './physics-box2d';
 import { RankRenderer } from './rankRenderer';
-import { type AdHit, RouletteRenderer } from './rouletteRenderer';
+import { RouletteRenderer } from './rouletteRenderer';
 import { SkillEffect } from './skillEffect';
-import type { RoundAd } from './types/Ad.type';
 import type { ColorTheme } from './types/ColorTheme';
 import type { MouseEventHandlerName, MouseEventName } from './types/mouseEvents.type';
 import type { UIObject } from './UIObject';
@@ -45,6 +44,9 @@ export class Roulette extends EventTarget {
   protected _renderer: RouletteRenderer;
 
   private _effects: GameObject[] = [];
+
+  private _customSkins: Map<number, CanvasImageSource> = new Map();
+  private _customSkinsByName: Map<string, CanvasImageSource> = new Map();
 
   private _winnerRange: WinnerRange = { start: 0, end: 0 };
   private _goalDist: number = Infinity;
@@ -326,23 +328,13 @@ export class Roulette extends EventTarget {
     });
 
     canvas.addEventListener('click', (e) => {
-      // 광고 오버레이가 팝업 위에 그려지므로 먼저 검사한다
-      const hit = this.adHitAt(e);
-      if (hit) {
-        if (hit.type === 'close') {
-          this.hideAdOverlay();
-        } else {
-          window.open(hit.url, '_blank', 'noopener');
-        }
-        return;
-      }
       if (this.resultCloseHitAt(e)) {
         this._renderer.closeResultPopup();
       }
     });
 
     canvas.addEventListener('pointermove', (e) => {
-      canvas.style.cursor = this.adHitAt(e) || this.resultCloseHitAt(e) ? 'pointer' : '';
+      canvas.style.cursor = this.resultCloseHitAt(e) ? 'pointer' : '';
     });
   }
 
@@ -394,27 +386,6 @@ export class Roulette extends EventTarget {
       throw new Error('Speed multiplier must larger than 0');
     }
     this._speed = value;
-  }
-
-  public setAd(ad: RoundAd | null) {
-    this._renderer.setAd(ad);
-  }
-
-  public preloadAdImages(srcs: (string | undefined)[]) {
-    this._renderer.preloadAdImages(srcs);
-  }
-
-  public showAdOverlay(mode: 'preroll' | 'result') {
-    this._renderer.showAdOverlay(mode);
-  }
-
-  public hideAdOverlay() {
-    this._renderer.hideAdOverlay();
-  }
-
-  private adHitAt(e: MouseEvent): AdHit | null {
-    const sizeFactor = this._renderer.sizeFactor;
-    return this._renderer.getAdHitAt(e.offsetX * sizeFactor, e.offsetY * sizeFactor);
   }
 
   private resultCloseHitAt(e: MouseEvent): boolean {
@@ -481,11 +452,18 @@ export class Roulette extends EventTarget {
         .fill(0)
         .map((_, i) => i)
     );
+    let marbleIndex = 0;
     members.forEach((member) => {
       if (member) {
         for (let j = 0; j < member.count; j++) {
           const order = orders.pop() || 0;
-          this._marbles.push(new Marble(this.physics, order, totalCount, member.name, member.weight));
+          const marble = new Marble(this.physics, order, totalCount, member.name, member.weight);
+          const custom = this._customSkins.get(marbleIndex) ?? this._customSkinsByName.get(member.name);
+          if (custom) {
+            marble.skin = custom;
+          }
+          this._marbles.push(marble);
+          marbleIndex++;
         }
       }
     });
@@ -553,5 +531,58 @@ export class Roulette extends EventTarget {
     this._stage = stages[index];
     this.setMarbles(names);
     this._camera.initializePosition();
+  }
+
+  public getMarbles(): Marble[] {
+    return this._marbles;
+  }
+
+  public getRenderer(): RouletteRenderer {
+    return this._renderer;
+  }
+
+  public getMarbleImage(name: string): CanvasImageSource | undefined {
+    return this._renderer.getMarbleImage(name);
+  }
+
+  public getPresetImages(): { [key: string]: HTMLImageElement } {
+    return this._renderer._images;
+  }
+
+  public setCustomSkin(marbleIndex: number, skin: CanvasImageSource | undefined) {
+    if (skin) {
+      this._customSkins.set(marbleIndex, skin);
+    } else {
+      this._customSkins.delete(marbleIndex);
+    }
+    if (this._marbles[marbleIndex]) {
+      this._marbles[marbleIndex].skin = skin;
+    }
+  }
+
+  public setCustomSkinByName(name: string, skin: CanvasImageSource | undefined) {
+    if (skin) {
+      this._customSkinsByName.set(name, skin);
+    } else {
+      this._customSkinsByName.delete(name);
+    }
+    this._marbles.forEach((marble) => {
+      if (marble.name === name) {
+        marble.skin = skin;
+      }
+    });
+  }
+
+  public getCustomSkin(marbleIndex: number): CanvasImageSource | undefined {
+    return this._customSkins.get(marbleIndex);
+  }
+
+  public getCustomSkinByName(name: string): CanvasImageSource | undefined {
+    return this._customSkinsByName.get(name);
+  }
+
+  public clearCustomSkins() {
+    this._customSkins.clear();
+    this._customSkinsByName.clear();
   }
 }

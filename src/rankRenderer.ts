@@ -79,8 +79,9 @@ export class RankRenderer implements UIObject {
     ctx.fillStyle = '#666';
     ctx.fillText(`${winners.length} / ${winners.length + marbles.length}`, width - 5, this.fontHeight);
 
+    const boardWidth = 200;
     ctx.beginPath();
-    ctx.rect(width - 150, this.fontHeight + 2, width, this.maxY);
+    ctx.rect(width - boardWidth, this.fontHeight + 2, boardWidth, this.maxY);
     ctx.clip();
 
     ctx.translate(0, -startY);
@@ -89,9 +90,9 @@ export class RankRenderer implements UIObject {
       ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
       const bandY = winnerRange.start * this.fontHeight + this.fontHeight / 2;
       const bandH = (winnerRange.end - winnerRange.start + 1) * this.fontHeight;
-      ctx.fillRect(width - 150, bandY, 150, bandH);
+      ctx.fillRect(width - boardWidth, bandY, boardWidth, bandH);
       ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
-      ctx.fillRect(width - 150, bandY, 3, bandH);
+      ctx.fillRect(width - boardWidth, bandY, 3, bandH);
     }
 
     ctx.font = 'bold 11pt sans-serif';
@@ -99,21 +100,49 @@ export class RankRenderer implements UIObject {
       ctx.lineWidth = 2;
       ctx.strokeStyle = theme.rankStroke;
     }
-    winners.forEach((marble: { hue: number; name: string }, rank: number) => {
+    winners.forEach((marble: Marble, rank: number) => {
       const y = rank * this.fontHeight;
       if (y >= startY && y <= startY + ctx.canvas.height) {
+        const text = `${this.isWinningRank(rank) ? '☆' : '\u2714'} ${marble.name} #${rank + 1}`;
+        const img = marble.skin || (window as any).roulette?.getMarbleImage?.(marble.name);
+        if (img) {
+          const textMetrics = ctx.measureText(text);
+          const avatarSize = 13;
+          const avatarX = startX - textMetrics.width - avatarSize - 4;
+          const avatarY = 20 + y - 10;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+          ctx.restore();
+        }
         ctx.fillStyle = `hsl(${marble.hue} 100% ${theme.marbleLightness}`;
-        ctx.strokeText(`${this.isWinningRank(rank) ? '☆' : '\u2714'} ${marble.name} #${rank + 1}`, startX, 20 + y);
-        ctx.fillText(`${this.isWinningRank(rank) ? '☆' : '\u2714'} ${marble.name} #${rank + 1}`, startX, 20 + y);
+        ctx.strokeText(text, startX, 20 + y);
+        ctx.fillText(text, startX, 20 + y);
       }
     });
     ctx.font = '10pt sans-serif';
-    marbles.forEach((marble: { hue: number; name: string }, rank: number) => {
+    marbles.forEach((marble: Marble, rank: number) => {
       const y = (rank + winners.length) * this.fontHeight;
       if (y >= startY && y <= startY + ctx.canvas.height) {
+        const text = `${marble.name} #${rank + 1 + winners.length}`;
+        const img = marble.skin || (window as any).roulette?.getMarbleImage?.(marble.name);
+        if (img) {
+          const textMetrics = ctx.measureText(text);
+          const avatarSize = 12;
+          const avatarX = startX - textMetrics.width - avatarSize - 4;
+          const avatarY = 20 + y - 9;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+          ctx.restore();
+        }
         ctx.fillStyle = `hsl(${marble.hue} 100% ${theme.marbleLightness}`;
-        ctx.strokeText(`${marble.name} #${rank + 1 + winners.length}`, startX, 20 + y);
-        ctx.fillText(`${marble.name} #${rank + 1 + winners.length}`, startX, 20 + y);
+        ctx.strokeText(text, startX, 20 + y);
+        ctx.fillText(text, startX, 20 + y);
       }
     });
     ctx.restore();

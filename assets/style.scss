@@ -71,8 +71,8 @@ div.copyright a {
     mask-image: url('images/megaphone.svg');
   }
 
-  &.shop {
-    mask-image: url('images/shop.svg');
+  &.gear {
+    mask-image: url('images/gear.svg');
   }
 
   &.record {
@@ -581,29 +581,292 @@ div.toast {
 }
 
 
-.shop-button {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
   justify-content: center;
-  padding: .2em .4em .4em .4em;
-  margin: 0 auto;
-  width: fit-content;
+  align-items: center;
 
-  color: white;
-  font-size: 32px;
-  line-height: 48px;
-  font-weight: bold;
-  text-decoration: none;
-
-  img {
-    width: 48px;
-    height: 48px;
-    margin-right: .2em;
-    margin-bottom: -4px;
+  &.show {
+    display: flex;
   }
 
-  background-color: #0077ff;
-  border: 2px solid black;
-  border-radius: 10px;
+  .modal-content {
+    background: #22252a;
+    color: #f1f2f6;
+    border: 2px solid #3d424d;
+    border-radius: 16px;
+    width: 520px;
+    max-width: 90vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+
+    &.modal-custom-image {
+      width: 620px;
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #1a1c20;
+    border-bottom: 1px solid #333842;
+
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .btn-close-modal {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 1.8rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+
+      &:hover {
+        color: #fff;
+      }
+    }
+  }
+
+  .modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+
+    .round-winner-section {
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed #3a3f4b;
+
+      &:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+
+      h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.1rem;
+        color: #58c9af;
+      }
+
+      .winner-cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .winner-card {
+        display: inline-flex;
+        align-items: center;
+        background: #2b303a;
+        padding: 6px 12px;
+        border-radius: 20px;
+        border: 1px solid #414856;
+        gap: 8px;
+
+        .winner-avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          object-fit: cover;
+          background: #555;
+          display: inline-block;
+        }
+
+        .winner-rank {
+          font-weight: bold;
+          color: #ffd700;
+          font-size: 0.9rem;
+        }
+
+        .winner-name {
+          font-weight: 600;
+          font-size: 0.95rem;
+        }
+      }
+    }
+
+    .history-section {
+      margin-top: 16px;
+      background: #1e2126;
+      border-radius: 8px;
+      padding: 12px;
+
+      h4 {
+        margin: 0 0 8px 0;
+        font-size: 0.95rem;
+        color: #8892b0;
+      }
+
+      .history-item {
+        font-size: 0.9rem;
+        padding: 6px 0;
+        border-bottom: 1px solid #2a2e36;
+        color: #ccd6f6;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .history-round {
+          font-weight: bold;
+          color: #64ffda;
+          margin-right: 4px;
+        }
+
+        .history-winner-tag {
+          background: #2a313d;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.85rem;
+        }
+      }
+    }
+
+    .image-custom-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1e2126;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      gap: 10px;
+
+      .marble-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 120px;
+
+        .marble-avatar-preview {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          object-fit: cover;
+          background: #444;
+          border: 1px solid #666;
+          display: inline-block;
+        }
+
+        .marble-name-tag {
+          font-weight: bold;
+          font-size: 0.95rem;
+        }
+      }
+
+      .marble-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+
+        select {
+          background: #2b303a;
+          color: #fff;
+          border: 1px solid #444c5c;
+          border-radius: 6px;
+          padding: 5px 8px;
+          font-size: 0.85rem;
+        }
+
+        .btn-upload-file {
+          background: #373e4d;
+          color: #eee;
+          border: 1px solid #4a5468;
+          border-radius: 6px;
+          padding: 5px 8px;
+          font-size: 0.85rem;
+          cursor: pointer;
+
+          &:hover {
+            background: #475063;
+          }
+        }
+
+        .btn-apply-same {
+          background: none;
+          color: #64ffda;
+          border: 1px solid #64ffda;
+          border-radius: 6px;
+          padding: 4px 8px;
+          font-size: 0.75rem;
+          cursor: pointer;
+
+          &:hover {
+            background: rgba(100, 255, 218, 0.1);
+          }
+        }
+      }
+    }
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    background: #1a1c20;
+    border-top: 1px solid #333842;
+
+    button {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+
+      &.btn-primary {
+        background: #58c9af;
+        color: #111;
+
+        &:hover {
+          background: #45b69c;
+        }
+      }
+
+      &.btn-secondary {
+        background: #3a7bd5;
+        color: #fff;
+
+        &:hover {
+          background: #2d68b8;
+        }
+      }
+
+      &.btn-default {
+        background: #444;
+        color: #ddd;
+
+        &:hover {
+          background: #555;
+        }
+      }
+    }
+  }
 }

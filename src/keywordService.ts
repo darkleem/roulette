@@ -2,13 +2,11 @@ import type { KeywordEntry, KeywordsData } from './types/keyword.type';
 
 const DEFAULT_KEYWORDS_URL = 'https://marblerouletteshop.com/api/external/keywords.json';
 const DEFAULT_SPRITE_BASE_URL = 'https://marblerouletteshop.com/api/external/sprites';
-const REFRESH_INTERVAL = 60000; // 60 seconds
 
 export class KeywordService {
   protected _keywordsData: KeywordsData | null = null;
   protected _spriteSheets: Map<number, HTMLImageElement> = new Map();
   protected _extractedSprites: Map<string, CanvasImageSource> = new Map();
-  private _intervalId: number | null = null;
   protected _loadingSprites: Map<number, Promise<HTMLImageElement | null>> = new Map();
   protected _lastGeneratedAt: string | null = null;
 
@@ -23,60 +21,10 @@ export class KeywordService {
   }
 
   async init(): Promise<void> {
-    await this.fetchKeywords();
-    this._startPeriodicRefresh();
+    // External shop keywords integration removed
   }
 
-  destroy(): void {
-    if (this._intervalId !== null) {
-      clearInterval(this._intervalId);
-      this._intervalId = null;
-    }
-  }
-
-  private _startPeriodicRefresh(): void {
-    this._intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        this.fetchKeywords();
-      }
-    }, REFRESH_INTERVAL);
-  }
-
-  async fetchKeywords(): Promise<void> {
-    try {
-      const response = await fetch(this._keywordsUrl);
-      if (!response.ok) {
-        console.warn(`[KeywordService] Failed to fetch keywords: ${response.status}`);
-        return;
-      }
-      const newData: KeywordsData = await response.json();
-      console.log(`[KeywordService] Fetched ${Object.keys(newData.keywords ?? {}).length} keywords`);
-
-      // Check if generated_at is newer than last load
-      const isNewer =
-        this._lastGeneratedAt === null || new Date(newData.generated_at) > new Date(this._lastGeneratedAt);
-
-      if (isNewer) {
-        // Clear sprite caches when data is updated
-        this._spriteSheets.clear();
-        this._extractedSprites.clear();
-        this._loadingSprites.clear();
-        console.log('[KeywordService] Data updated, clearing sprite caches');
-      }
-
-      this._keywordsData = newData;
-      this._lastGeneratedAt = newData.generated_at;
-
-      // Preload sprite sheets for all keywords
-      const spriteIds = new Set<number>();
-      for (const entry of Object.values(this._keywordsData.keywords)) {
-        spriteIds.add(entry.sprite);
-      }
-      await Promise.all([...spriteIds].map((id) => this._loadSpriteSheet(id)));
-    } catch (error) {
-      console.warn('[KeywordService] Error fetching keywords:', error);
-    }
-  }
+  destroy(): void {}
 
   protected async _loadSpriteSheet(spriteId: number): Promise<HTMLImageElement | null> {
     if (this._spriteSheets.has(spriteId)) {

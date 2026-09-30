@@ -219,11 +219,7 @@
         });
       }
       document.querySelector('#settings').classList.add('hide');
-      if (window.ads) {
-        window.ads.beginRound(() => window.roulette.start());
-      } else {
-        window.roulette.start();
-      }
+      window.roulette.start();
     });
 
     document.querySelector('#chkAutoRecording').addEventListener('change', (e) => {
@@ -248,12 +244,312 @@
     document.querySelector('#in_rangeStart').addEventListener('change', () => selectWinnerType('multi', 'start'));
     document.querySelector('#in_rangeEnd').addEventListener('change', () => selectWinnerType('multi', 'end'));
 
-    window.roulette.addEventListener('goal', () => {
-      ready = false;
-      if (window.ads) window.ads.showResult();
-      setTimeout(() => {
+    let currentRound = parseInt(sessionStorage.getItem('mbr_current_round') || '1', 10);
+    let roundHistory = [];
+    try {
+      const savedHistory = sessionStorage.getItem('mbr_round_history');
+      if (savedHistory) roundHistory = JSON.parse(savedHistory);
+    } catch (e) {
+      roundHistory = [];
+    }
+
+    function saveSessionHistory() {
+      sessionStorage.setItem('mbr_current_round', currentRound.toString());
+      sessionStorage.setItem('mbr_round_history', JSON.stringify(roundHistory));
+    }
+
+    function showWinnerModal(round, winners, history, isViewingHistory = false) {
+      const modal = document.querySelector('#winnerModal');
+      const title = document.querySelector('#winnerModalTitle');
+      const body = document.querySelector('#winnerModalBody');
+      const btnExclude = document.querySelector('#btnExcludeWinners');
+      const btnRerun = document.querySelector('#btnRerunSame');
+
+      if (isViewingHistory) {
+        title.textContent = `🏆 역대 회차 당첨 기록 (총 ${history.length}회차)`;
+        btnExclude.style.display = 'none';
+        btnRerun.style.display = 'none';
+      } else {
+        title.textContent = `🎉 ${round}차 당첨 결과`;
+        btnExclude.style.display = 'inline-block';
+        btnRerun.style.display = 'inline-block';
+      }
+
+      let winnersHtml = '';
+      if (!isViewingHistory) {
+        winnersHtml += `
+          <div class="round-winner-section">
+            <h3>이번 ${round}차 당첨자 (${winners.length}명)</h3>
+            <div class="winner-cards">
+        `;
+
+        winners.forEach((name, idx) => {
+          const img = window.roulette ? window.roulette.getMarbleImage(name) : null;
+          let avatarHtml = '';
+          if (img && img.src) {
+            avatarHtml = `<img src="${img.src}" class="winner-avatar" alt="${name}" />`;
+          } else {
+            avatarHtml = `<span class="winner-avatar" style="background:#58c9af; display:inline-flex; align-items:center; justify-content:center; font-size:12px; color:#000;">★</span>`;
+          }
+          winnersHtml += `
+            <div class="winner-card">
+              ${avatarHtml}
+              <span class="winner-rank">#${idx + 1}</span>
+              <span class="winner-name">${name}</span>
+            </div>
+          `;
+        });
+        winnersHtml += `</div></div>`;
+      }
+
+      if (history.length > 0) {
+        winnersHtml += `
+          <div class="history-section" style="${isViewingHistory ? 'margin-top: 0;' : ''}">
+            <h4>📜 ${isViewingHistory ? '회차별 당첨 목록' : '역대 회차 당첨 히스토리'}</h4>
+        `;
+        history.forEach((h) => {
+          winnersHtml += `
+            <div class="history-item">
+              <span class="history-round">${h.round}차:</span>
+              <div style="display:inline-flex; gap:4px; flex-wrap:wrap;">
+                ${h.winners.map(w => `<span class="history-winner-tag">${w}</span>`).join('')}
+              </div>
+            </div>
+          `;
+        });
+        winnersHtml += `</div>`;
+      }
+
+      body.innerHTML = winnersHtml;
+      modal.classList.add('show');
+    }
+
+    function closeWinnerModal() {
+      document.querySelector('#winnerModal').classList.remove('show');
+      document.querySelector('#settings').classList.remove('hide');
+    }
+
+    function excludeWinnersAndRerun() {
+      const lastResult = roundHistory[roundHistory.length - 1];
+      if (!lastResult || !lastResult.winners || lastResult.winners.length === 0) {
+        rerunSame();
+        return;
+      }
+
+      const toExclude = [...lastResult.winners];
+      const rawVal = document.querySelector('#in_names').value;
+      const tokens = rawVal.split(/[,\r\n]/g).map(v => v.trim()).filter(Boolean);
+      const newItems = [];
+
+      tokens.forEach((token) => {
+        const parsed = parseName(token);
+        let count = parsed.count;
+        for (let i = toExclude.length - 1; i >= 0; i--) {
+          if (toExclude[i] === parsed.name && count > 0) {
+            count--;
+            toExclude.splice(i, 1);
+          }
+        }
+        if (count > 0) {
+          const weightPart = parsed.weight > 1 ? `/${parsed.weight}` : '';
+          const countPart = count > 1 ? `*${count}` : '';
+          newItems.push(`${parsed.name}${weightPart}${countPart}`);
+        }
+      });
+
+      const newStr = newItems.join(',');
+      document.querySelector('#in_names').value = newStr;
+      localStorage.setItem('mbr_names', newStr);
+
+      getReady();
+
+      if (window.roulette.getCount() === 0) {
+        document.querySelector('#winnerModal').classList.remove('show');
         document.querySelector('#settings').classList.remove('hide');
-      }, 3000);
+        simpleToast('남은 인원이 없습니다.');
+        return;
+      }
+
+      currentRound++;
+      saveSessionHistory();
+      document.querySelector('#winnerModal').classList.remove('show');
+      document.querySelector('#settings').classList.add('hide');
+      window.roulette.start();
+    }
+
+    function rerunSame() {
+      getReady();
+      if (window.roulette.getCount() === 0) {
+        document.querySelector('#winnerModal').classList.remove('show');
+        document.querySelector('#settings').classList.remove('hide');
+        simpleToast('남은 인원이 없습니다.');
+        return;
+      }
+      currentRound++;
+      saveSessionHistory();
+      document.querySelector('#winnerModal').classList.remove('show');
+      document.querySelector('#settings').classList.add('hide');
+      window.roulette.start();
+    }
+
+    document.querySelector('#btnCloseWinnerX').addEventListener('click', closeWinnerModal);
+    document.querySelector('#btnCloseWinnerModal').addEventListener('click', closeWinnerModal);
+    document.querySelector('#btnExcludeWinners').addEventListener('click', excludeWinnersAndRerun);
+    document.querySelector('#btnRerunSame').addEventListener('click', rerunSame);
+    document.querySelector('#btnHistory').addEventListener('click', () => {
+      if (roundHistory.length === 0) {
+        simpleToast('아직 진행된 회차 결과가 없습니다.');
+        return;
+      }
+      showWinnerModal(currentRound, [], roundHistory, true);
+    });
+    document.querySelector('#btnClearHistory').addEventListener('click', () => {
+      if (confirm('모든 회차 당첨 기록을 초기화하시겠습니까?')) {
+        roundHistory = [];
+        currentRound = 1;
+        saveSessionHistory();
+        closeWinnerModal();
+        simpleToast('당첨 기록이 초기화되었습니다.');
+      }
+    });
+
+    const PRESET_NAMES = ['기본', '챔루', '쿠빈', '꽉변', '주누피', '왈도쿤'];
+
+    function openImageCustomModal() {
+      if (!window.roulette) return;
+      const marbles = window.roulette.getMarbles();
+      if (marbles.length === 0) {
+        getReady();
+      }
+      const currentMarbles = window.roulette.getMarbles();
+      const listEl = document.querySelector('#imageCustomList');
+
+      if (currentMarbles.length === 0) {
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">참여 중인 구슬이 없습니다. 이름을 먼저 입력해주세요.</div>';
+        document.querySelector('#imageCustomModal').classList.add('show');
+        return;
+      }
+
+      const presetsObj = window.roulette ? window.roulette.getPresetImages() : {};
+      const presetNames = Object.keys(presetsObj);
+
+      let html = '';
+      currentMarbles.forEach((m, idx) => {
+        const customSkin = window.roulette.getCustomSkin(idx);
+        const defaultImg = window.roulette.getMarbleImage(m.name);
+        const activeImg = customSkin || defaultImg;
+
+        let previewSrc = '';
+        if (activeImg && activeImg.src) {
+          previewSrc = activeImg.src;
+        }
+
+        let optionsHtml = '<option value="default">기본</option>';
+        presetNames.forEach((pName) => {
+          optionsHtml += `<option value="${pName}">${pName}</option>`;
+        });
+
+        html += `
+          <div class="image-custom-item" data-index="${idx}" data-name="${m.name}">
+            <div class="marble-info">
+              <span class="marble-avatar-preview" id="preview-${idx}" style="background: ${previewSrc ? `url('${previewSrc}') center/cover` : `hsl(${m.hue} 100% 50%)`};"></span>
+              <span class="marble-name-tag">#${idx + 1} ${m.name}</span>
+            </div>
+            <div class="marble-controls">
+              <select class="slt-preset" data-index="${idx}">
+                ${optionsHtml}
+              </select>
+              <label class="btn-upload-file">
+                사진 선택
+                <input type="file" accept="image/*" class="file-upload-input" data-index="${idx}" style="display: none;" />
+              </label>
+              <button class="btn-apply-same" data-index="${idx}" data-name="${m.name}" title="같은 이름을 가진 모든 구슬에 이 이미지 적용">동명 일괄 적용</button>
+            </div>
+          </div>
+        `;
+      });
+
+      listEl.innerHTML = html;
+
+      listEl.querySelectorAll('.slt-preset').forEach((slt) => {
+        const idx = parseInt(slt.dataset.index, 10);
+        const marble = currentMarbles[idx];
+        if (presetNames.includes(marble.name)) {
+          slt.value = marble.name;
+        }
+        slt.addEventListener('change', (e) => {
+          const val = e.target.value;
+          const preview = document.querySelector(`#preview-${idx}`);
+          if (val === 'default') {
+            window.roulette.setCustomSkin(idx, undefined);
+            preview.style.background = `hsl(${marble.hue} 100% 50%)`;
+          } else {
+            const presets = window.roulette.getPresetImages();
+            const img = presets[val] || window.roulette.getMarbleImage(val);
+            if (img) {
+              window.roulette.setCustomSkin(idx, img);
+              preview.style.background = `url('${img.src}') center/cover`;
+            }
+          }
+        });
+      });
+
+      listEl.querySelectorAll('.file-upload-input').forEach((inp) => {
+        const idx = parseInt(inp.dataset.index, 10);
+        inp.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (rev) => {
+            const img = new Image();
+            img.onload = () => {
+              window.roulette.setCustomSkin(idx, img);
+              const preview = document.querySelector(`#preview-${idx}`);
+              preview.style.background = `url('${img.src}') center/cover`;
+            };
+            img.src = rev.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      listEl.querySelectorAll('.btn-apply-same').forEach((btn) => {
+        const idx = parseInt(btn.dataset.index, 10);
+        const name = btn.dataset.name;
+        btn.addEventListener('click', () => {
+          const currentSkin = window.roulette.getCustomSkin(idx) || window.roulette.getMarbleImage(name);
+          window.roulette.setCustomSkinByName(name, currentSkin);
+          simpleToast(`'${name}' 이름을 가진 모든 구슬에 적용되었습니다.`);
+          openImageCustomModal();
+        });
+      });
+
+      document.querySelector('#imageCustomModal').classList.add('show');
+    }
+
+    function closeImageCustomModal() {
+      document.querySelector('#imageCustomModal').classList.remove('show');
+    }
+
+    document.querySelector('#btnCustomImage').addEventListener('click', openImageCustomModal);
+    document.querySelector('#btnCloseImageCustomX').addEventListener('click', closeImageCustomModal);
+    document.querySelector('#btnApplyCustomImages').addEventListener('click', closeImageCustomModal);
+    document.querySelector('#btnResetAllImages').addEventListener('click', () => {
+      window.roulette.clearCustomSkins();
+      getReady();
+      openImageCustomModal();
+      simpleToast('모든 이미지가 초기화되었습니다.');
+    });
+
+    window.roulette.addEventListener('goal', (e) => {
+      ready = false;
+      const detail = e.detail || {};
+      const winners = detail.winners || (detail.winner ? [detail.winner] : []);
+      roundHistory.push({ round: currentRound, winners });
+      saveSessionHistory();
+      setTimeout(() => {
+        showWinnerModal(currentRound, winners, roundHistory);
+      }, 1000);
     });
 
     window.roulette.addEventListener('message', (e) => {
@@ -414,10 +710,14 @@
       <button id="btnNotice">
         <i class="icon megaphone"></i>
       </button>
-      <a href='https://marblerouletteshop.com' target='_blank' id="btnShop" class='btn' title='MarbleRoulette Shop'>
-        <i class="icon shop"></i>
-        <span>Shop</span>
-      </a>
+      <button id="btnCustomImage" title="이미지 설정">
+        <i class="icon gear"></i>
+        <span>이미지 변경</span>
+      </button>
+      <button id="btnHistory" title="회차별 당첨 기록 확인">
+        <i class="icon trophy"></i>
+        <span>당첨 기록</span>
+      </button>
       <div class="sep"></div>
       <button id="btnShuffle">
         <i class="icon shuffle"></i>
@@ -433,17 +733,46 @@
 <div id="notice">
   <h2>Notice</h2>
   <div class="notice-body">
-    <h3>커스텀 룰렛 교사 특별 연장 안내</h3>
     <p>
-      교육 현장에서 마블 룰렛을 사용하시는 교사 분들을 위한 커스텀 룰렛 기간 연장을 상시 지원하고 있습니다.<br />
-      <a href='https://marblerouletteshop.com/news/2' target='_blank'>상세한 내용은 여기를 클릭해 확인하세요.</a>
+      마블 룰렛에 오신 것을 환영합니다! 이름을 입력하고 시작 버튼을 눌러 추첨을 진행해보세요.
     </p>
   </div>
   <div class="notice-action">
     <button id="closeNotice" data-trans>Close</button>
   </div>
 </div>
-<div class="copyright">&copy; 2022-2026. 마블 룰렛™ by <a href="https://lazygyu.net" target="_blank">lazygyu</a> | <a href="https://marblerouletteshop.com/advertise" target="_blank">광고문의</a>
+<div id="winnerModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="winnerModalTitle">🎉 당첨 결과</h2>
+      <button id="btnCloseWinnerX" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body" id="winnerModalBody"></div>
+    <div class="modal-actions">
+      <button id="btnClearHistory" class="btn-default" style="margin-right: auto;" title="모든 회차 당첨 기록 초기화">기록 초기화</button>
+      <button id="btnExcludeWinners" class="btn-primary">해당인원 제외</button>
+      <button id="btnRerunSame" class="btn-secondary">그냥 재진행</button>
+      <button id="btnCloseWinnerModal" class="btn-default">닫기</button>
+    </div>
+  </div>
+</div>
+<div id="imageCustomModal" class="modal">
+  <div class="modal-content modal-custom-image">
+    <div class="modal-header">
+      <h2>구슬 이미지 설정</h2>
+      <button id="btnCloseImageCustomX" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size: 0.9rem; color: #8892b0; margin-bottom: 12px;">
+        각 구슬별로 이미지를 변경할 수 있습니다. 동명이인은 개별 설정 또는 일괄 적용이 가능합니다.
+      </div>
+      <div id="imageCustomList"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="btnResetAllImages" class="btn-default">전체 초기화</button>
+      <button id="btnApplyCustomImages" class="btn-primary">완료</button>
+    </div>
+  </div>
 </div>
 </body>
 </html>
